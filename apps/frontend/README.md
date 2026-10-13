@@ -1,32 +1,23 @@
-# React + TypeScript + Vite
+# M1 Сервис — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Клиентская часть проекта на Next.js с App Router и TypeScript.
 
-Currently, two official plugins are available:
+Из корня monorepo development-окружение запускается командой:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+docker compose -f compose.dev.yaml up -d --build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Frontend будет доступен по адресу `http://localhost:3000`. Изменения в `src`
+подхватываются Next.js Fast Refresh.
+
+## Структура компонентов
+
+Страницы App Router отвечают за загрузку данных и собираются из переиспользуемых
+React-компонентов:
+
+- `SiteLayout`, `SiteHeader`, `SiteFooter` — общий каркас страниц;
+- `Eyebrow`, `SectionHeading` — единая типографика заголовков;
+- `CatalogGrid`, `CatalogCard` — общая сетка, состояния и основа карточек;
+- `ServiceCard`, `StationCard` — адаптеры данных услуг и СТО;
+- `HeroSection`, `BookingPreview` — самостоятельные секции главной страницы.

@@ -7,7 +7,7 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim());
 
-  app.enableCors({ origin: corsOrigins });
+  app.enableCors({ origin: corsOrigins, credentials: true });
   app.enableShutdownHooks();
 
   await app.listen(Number(process.env.PORT ?? 5000), '0.0.0.0');

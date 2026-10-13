@@ -14,16 +14,30 @@ WORKDIR /workspace/apps/frontend
 
 FROM development AS builder
 
-ARG VITE_API_URL=http://localhost:5000/api
-ENV VITE_API_URL=$VITE_API_URL
+ARG NEXT_PUBLIC_API_URL=http://localhost:5000/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
-FROM nginx:1.27-alpine AS runner
+FROM node:22-alpine AS runner
 
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /workspace/apps/frontend/dist /usr/share/nginx/html
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-EXPOSE 80
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/frontend/public ./apps/frontend/public
+
+USER nextjs
+
+EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
-  CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1
+
+CMD ["node", "apps/frontend/server.js"]

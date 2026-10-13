@@ -26,12 +26,18 @@ services:
       target: development
     restart: unless-stopped
     working_dir: /workspace/apps/backend
-    command: ["sh", "-c", "npm run prisma:migrate:deploy && npm run start:dev"]
+    command: ["sh", "-c", "npm run prisma:migrate:deploy && npm run prisma:seed && npm run start:dev"]
     environment:
       NODE_ENV: development
       PORT: 5000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
+      ADMIN_PHONE: ${ADMIN_PHONE:-}
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "300"
     volumes:
@@ -60,16 +66,16 @@ services:
       target: development
     restart: unless-stopped
     working_dir: /workspace/apps/frontend
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
     environment:
-      VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:5000/api}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+      API_INTERNAL_URL: http://backend:5000/api
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "300"
+      WATCHPACK_POLLING: "500"
     volumes:
       - ./apps/frontend/src:/workspace/apps/frontend/src
       - ./apps/frontend/public:/workspace/apps/frontend/public
-      - ./apps/frontend/index.html:/workspace/apps/frontend/index.html
-      - ./apps/frontend/vite.config.ts:/workspace/apps/frontend/vite.config.ts
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

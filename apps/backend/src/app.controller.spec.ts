@@ -14,7 +14,9 @@ describe('AppController', () => {
         AppService,
         {
           provide: PrismaService,
-          useValue: { $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]) },
+          useValue: {
+            $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+          },
         },
       ],
     }).compile();

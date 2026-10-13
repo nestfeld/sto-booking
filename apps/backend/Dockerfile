@@ -31,4 +31,4 @@ COPY --from=builder /workspace/apps/backend/prisma ./apps/backend/prisma
 WORKDIR /app/apps/backend
 EXPOSE 5000
 
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node prisma/seed.mjs && node dist/main.js"]

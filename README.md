@@ -4,7 +4,7 @@
 
 ## Стек
 
-- React + TypeScript + Vite
+- Next.js (App Router) + React + TypeScript
 - NestJS
 - PostgreSQL
 - Prisma ORM
@@ -39,9 +39,45 @@ Node.js и PostgreSQL запускаются только в Docker. Глоба�
 
 - Frontend: http://localhost:3000
 - Backend health-check: http://localhost:5000/api/health
+- Каталог услуг: http://localhost:5000/api/services
+- Каталог СТО: http://localhost:5000/api/stations
+- Свободное время: `GET http://localhost:5000/api/availability?stationId=1&serviceId=1&date=2026-10-14`
+- Создание записи: `POST http://localhost:5000/api/bookings`
+- Регистрация: `POST http://localhost:5000/api/auth/register`
+- Вход: `POST http://localhost:5000/api/auth/login`
+- Текущий пользователь: `GET http://localhost:5000/api/auth/me`
+- Изменение имени и телефона: `PATCH http://localhost:5000/api/auth/profile`
+- Выход: `POST http://localhost:5000/api/auth/logout`
+- Записи текущего пользователя: `GET http://localhost:5000/api/bookings/me`
+- Автомобили пользователя: `GET/POST http://localhost:5000/api/vehicles`, удаление — `DELETE http://localhost:5000/api/vehicles/:id`
+- Список записей для администратора: `GET http://localhost:5000/api/admin/bookings`
+- Детали записи для администратора: `GET http://localhost:5000/api/admin/bookings/:id`
+- Изменение статуса: `PATCH http://localhost:5000/api/admin/bookings/:id/status`
 - PostgreSQL доступен только сервисам во внутренней сети Compose.
 
-При старте backend автоматически выполняет `prisma migrate deploy`. Данные PostgreSQL сохраняются в именованном томе `sto-booking-postgres-data`.
+Пример тела запроса для создания записи:
+
+```json
+{
+  "stationId": 1,
+  "serviceId": 1,
+  "startsAt": "2026-10-14T09:00:00+05:00",
+  "customerName": "Иван Петров",
+  "phone": "+7 700 000 00 00",
+  "vehicle": "Toyota Camry"
+}
+```
+
+Backend повторно проверяет доступность времени, сам выбирает подходящий рабочий пост и создаёт запись со статусом `PENDING`. Авторизация необязательна; если клиент вошёл в аккаунт, запись автоматически связывается с ним.
+
+При регистрации обязательны `login`, `password`, `name` и `phone`. Формат номера
+телефона пока не проверяется. Авторизованный клиент не передаёт имя и телефон в
+бронировании: backend берёт их из профиля. Для сохранённого автомобиля достаточно
+передать `vehicleId`; новый автомобиль можно передать обычным полем `vehicle`.
+
+При старте backend автоматически выполняет `prisma migrate deploy` и идемпотентный
+seed. Данные PostgreSQL сохраняются в именованном томе
+`sto-booking-postgres-data`.
 
 ## Полезные команды
 
@@ -64,10 +100,10 @@ docker compose down --volumes
 ```text
 sto-booking/
 ├── apps/
-│   ├── frontend/        # React + Vite, отдаётся через nginx
+│   ├── frontend/        # Next.js App Router
 │   └── backend/         # NestJS + Prisma
 ├── compose.yaml
-├── compose.dev.yaml     # Vite HMR + NestJS watch
+├── compose.dev.yaml     # Next.js Fast Refresh + NestJS watch
 ├── package.json         # npm workspaces
 ├── .env.example
 └── README.md
@@ -75,9 +111,58 @@ sto-booking/
 
 Файл `.env` исключён из Git. Коммитить его нельзя; для репозитория хранится только безопасный шаблон `.env.example`.
 
+Для авторизации задайте в `.env` случайный `JWT_SECRET` длиной не менее 32
+символов. В локальной разработке `COOKIE_SECURE=false`; при публикации через
+HTTPS установите `COOKIE_SECURE=true`.
+
+## Авторизация клиента
+
+Страницы frontend:
+
+- http://localhost:3000/login — вход и регистрация;
+- http://localhost:3000/account — личный кабинет.
+
+JWT хранится в `HttpOnly` cookie `m1_session` и недоступен клиентскому
+JavaScript. Пароли хранятся в PostgreSQL только в виде bcrypt-хеша. Регистрация
+не обязательна для онлайн-записи. В кабинете пользователь может отдельно
+управлять гаражом, активными и прошлыми записями, а также изменять имя и телефон.
+Созданная после входа запись автоматически связывается с аккаунтом.
+
+## Административная панель
+
+Страница администратора доступна по адресу http://localhost:3000/admin. Она
+показывает записи клиентов, контактные данные, автомобиль, услугу, филиал и
+автоматически назначенный рабочий пост. Список можно фильтровать по статусу,
+филиалу и датам.
+
+Публичная регистрация всегда создаёт пользователя с ролью `CLIENT`. Учётная
+запись администратора создаётся или обновляется только seed-скриптом. Для этого
+задайте в локальном `.env` все четыре переменные:
+
+```dotenv
+ADMIN_LOGIN=m1.admin
+ADMIN_PASSWORD=replace-with-a-strong-password
+ADMIN_NAME=Администратор M1
+ADMIN_PHONE=+7 700 000 00 00
+```
+
+Если переменные оставлены пустыми, seed пропускает создание администратора. Не
+добавляйте реальные логины и пароли в `.env.example` или Git.
+
+Для записей разрешены только последовательные переходы статусов:
+
+- `PENDING` → `CONFIRMED` или `CANCELLED`;
+- `CONFIRMED` → `IN_PROGRESS` или `CANCELLED`;
+- `IN_PROGRESS` → `COMPLETED`;
+- `COMPLETED` и `CANCELLED` являются конечными состояниями.
+
+Административные маршруты защищены JWT и дополнительной проверкой роли из базы
+данных. Обновление статуса выполняется атомарно, поэтому два одновременных
+запроса не смогут незаметно перезаписать друг друга.
+
 ## Режим разработки с автоматическим обновлением
 
-Development Compose запускает Vite с HMR и NestJS в watch-режиме. Изменения в `apps/frontend/src` и `apps/backend/src` сразу передаются в контейнеры через bind mounts.
+Development Compose запускает Next.js с Fast Refresh и NestJS в watch-режиме. Изменения в `apps/frontend/src` и `apps/backend/src` сразу передаются в контейнеры через bind mounts.
 
 Production и development используют одинаковые порты, поэтому сначала остановите обычный стек:
 
@@ -111,3 +196,26 @@ docker compose -f compose.dev.yaml exec backend npm exec prisma migrate dev -- -
 ```
 
 Development использует отдельный volume `sto-booking-dev-postgres-data`; production-данные не затрагиваются.
+
+При старте development-окружения выполняется идемпотентный seed каталога. Его можно
+безопасно запустить повторно вручную:
+
+```powershell
+docker compose -f compose.dev.yaml exec backend npm run prisma:seed
+```
+
+Демонстрационные данные включают шесть услуг, три СТО, рабочие посты,
+совместимость постов с услугами и расписание филиалов.
+
+## Модель расписания и бронирования
+
+- `StationWorkingPeriod` хранит обычные рабочие интервалы филиала по дням недели.
+- `StationScheduleException` переопределяет расписание на конкретную дату или отмечает выходной.
+- `WorkPostType` и `WorkPost` описывают типы и реальные рабочие посты каждого филиала.
+- `WorkPostService` задаёт, какие услуги может выполнять конкретный пост.
+- `WorkPostDowntime` хранит временные отключения постов.
+- `Booking` связывает запись с филиалом, услугой и автоматически выбранным постом.
+
+На уровне PostgreSQL действует exclusion constraint: активные записи со статусами
+`PENDING`, `CONFIRMED` и `IN_PROGRESS` не могут пересекаться по времени на одном
+рабочем посту. Записи `COMPLETED` и `CANCELLED` не блокируют новые интервалы.
