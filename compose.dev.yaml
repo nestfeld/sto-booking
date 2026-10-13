@@ -1,0 +1,94 @@
+name: sto-booking-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - sto-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: development
+    restart: unless-stopped
+    working_dir: /workspace/apps/backend
+    command: ["sh", "-c", "npm run prisma:migrate:deploy && npm run start:dev"]
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+    volumes:
+      - ./apps/backend/src:/workspace/apps/backend/src
+      - ./apps/backend/test:/workspace/apps/backend/test
+      - ./apps/backend/prisma:/workspace/apps/backend/prisma
+      - ./apps/backend/tsconfig.json:/workspace/apps/backend/tsconfig.json:ro
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sto-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/api/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      target: development
+    restart: unless-stopped
+    working_dir: /workspace/apps/frontend
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+    environment:
+      VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:5000/api}
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+    volumes:
+      - ./apps/frontend/src:/workspace/apps/frontend/src
+      - ./apps/frontend/public:/workspace/apps/frontend/public
+      - ./apps/frontend/index.html:/workspace/apps/frontend/index.html
+      - ./apps/frontend/vite.config.ts:/workspace/apps/frontend/vite.config.ts
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sto-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+volumes:
+  postgres_dev_data:
+    name: sto-booking-dev-postgres-data
+
+networks:
+  sto-dev-network:
+    name: sto-booking-dev-network
+    driver: bridge
