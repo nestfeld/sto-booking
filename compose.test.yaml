@@ -1,0 +1,44 @@
+name: sto-booking-test
+
+services:
+  postgres-test:
+    image: postgres:17-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: sto_booking_e2e
+      POSTGRES_USER: sto_test
+      POSTGRES_PASSWORD: sto_test_password
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sto_test -d sto_booking_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  backend-e2e:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: development
+    restart: "no"
+    working_dir: /workspace/apps/backend
+    command:
+      - sh
+      - -c
+      - npm exec prisma migrate reset -- --force --skip-seed && npm run prisma:seed && npm run test:e2e
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://sto_test:sto_test_password@postgres-test:5432/sto_booking_e2e?schema=public
+      JWT_SECRET: e2e-jwt-secret-that-is-at-least-32-characters
+      COOKIE_SECURE: "false"
+    volumes:
+      - ./apps/backend/src:/workspace/apps/backend/src:ro
+      - ./apps/backend/test:/workspace/apps/backend/test:ro
+      - ./apps/backend/prisma:/workspace/apps/backend/prisma:ro
+      - ./apps/backend/tsconfig.json:/workspace/apps/backend/tsconfig.json:ro
+      - ./apps/backend/vitest.config.e2e.ts:/workspace/apps/backend/vitest.config.e2e.ts:ro
+    depends_on:
+      postgres-test:
+        condition: service_healthy

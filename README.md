@@ -95,6 +95,29 @@ docker compose down
 docker compose down --volumes
 ```
 
+## E2E-тесты с PostgreSQL
+
+E2E-набор запускает настоящее NestJS-приложение, отправляет HTTP-запросы через
+Supertest и работает с отдельной PostgreSQL-базой без моков Prisma. Тестовая база
+находится в `tmpfs`, не использует volumes development/production и перед каждым
+прогоном получает миграции и seed.
+
+Запуск из корня репозитория:
+
+```powershell
+docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from backend-e2e
+```
+
+Удаление остановленных тестовых контейнеров:
+
+```powershell
+docker compose -f compose.test.yaml down --volumes --remove-orphans
+```
+
+Подробное описание тестового контура и правила добавления новых сценариев находятся
+в [`TESTING.md`](TESTING.md). Матрица покрытия — в
+[`apps/backend/test/E2E_MATRIX.md`](apps/backend/test/E2E_MATRIX.md).
+
 ## Структура
 
 ```text
@@ -105,6 +128,8 @@ sto-booking/
 ├── compose.yaml
 ├── compose.dev.yaml     # Next.js Fast Refresh + NestJS watch
 ├── compose.coolify.yaml # production-развёртывание через Coolify
+├── compose.test.yaml    # E2E с отдельной PostgreSQL
+├── TESTING.md           # запуск, устройство и развитие тестов
 ├── package.json         # npm workspaces
 ├── .env.example
 └── README.md
