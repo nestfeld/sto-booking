@@ -84,6 +84,7 @@ describe('STO Booking API (E2E with PostgreSQL)', () => {
     await prisma.booking.deleteMany();
     await prisma.vehicle.deleteMany();
     await prisma.workPostDowntime.deleteMany();
+    await prisma.stationScheduleException.deleteMany();
     await prisma.user.deleteMany({ where: { role: UserRole.CLIENT } });
     await prisma.user.upsert({
       where: { login: ADMIN.login },
@@ -120,12 +121,26 @@ describe('STO Booking API (E2E with PostgreSQL)', () => {
     return offer;
   }
 
-  async function availableSlot(stationId: number, serviceId: number) {
+  async function availability(
+    stationId: number,
+    serviceId: number,
+    date = futureWorkingDate(),
+  ) {
     const response = await request(app.getHttpServer())
       .get('/api/availability')
-      .query({ stationId, serviceId, date: futureWorkingDate() })
+      .query({ stationId, serviceId, date })
       .expect(200);
-    const slot = response.body.slots[0] as
+
+    return response.body as {
+      date: string;
+      durationMinutes: number;
+      slots: { startsAt: string; endsAt: string }[];
+    };
+  }
+
+  async function availableSlot(stationId: number, serviceId: number) {
+    const result = await availability(stationId, serviceId);
+    const slot = result.slots[0] as
       | { startsAt: string; endsAt: string }
       | undefined;
 
@@ -275,6 +290,133 @@ describe('STO Booking API (E2E with PostgreSQL)', () => {
           date: futureWorkingDate(),
         })
         .expect(404);
+    });
+
+    it('returns no slots when a schedule exception closes the station', async () => {
+      const offer = await seededOffer('m1-center', 'computer-diagnostics');
+      const date = futureWorkingDate();
+      await prisma.stationScheduleException.create({
+        data: {
+          stationId: offer.stationId,
+          date: new Date(`${date}T00:00:00.000Z`),
+          isClosed: true,
+          reason: 'E2E closed day',
+        },
+      });
+
+      const result = await availability(
+        offer.stationId,
+        offer.serviceId,
+        date,
+      );
+      expect(result.slots).toEqual([]);
+    });
+
+    it('uses shortened hours from a schedule exception', async () => {
+      const offer = await seededOffer('m1-center', 'computer-diagnostics');
+      const date = futureWorkingDate();
+      await prisma.stationScheduleException.create({
+        data: {
+          stationId: offer.stationId,
+          date: new Date(`${date}T00:00:00.000Z`),
+          isClosed: false,
+          startsMinute: 10 * 60,
+          endsMinute: 12 * 60,
+          reason: 'E2E shortened day',
+        },
+      });
+
+      const result = await availability(
+        offer.stationId,
+        offer.serviceId,
+        date,
+      );
+      expect(result.slots.map(({ startsAt }) => startsAt)).toEqual([
+        `${date}T10:00:00+05:00`,
+        `${date}T10:30:00+05:00`,
+        `${date}T11:00:00+05:00`,
+      ]);
+      expect(result.slots.at(-1)?.endsAt).toBe(`${date}T11:45:00+05:00`);
+    });
+
+    it('removes slots that overlap a work-post downtime', async () => {
+      const offer = await seededOffer('m1-east', 'scheduled-maintenance');
+      const slot = await availableSlot(offer.stationId, offer.serviceId);
+      const assignment = await prisma.workPostService.findFirstOrThrow({
+        where: offer,
+        select: { workPostId: true },
+      });
+      await prisma.workPostDowntime.create({
+        data: {
+          workPostId: assignment.workPostId,
+          startsAt: new Date(slot.startsAt),
+          endsAt: new Date(slot.endsAt),
+          reason: 'E2E maintenance',
+        },
+      });
+
+      const result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).not.toContain(
+        slot.startsAt,
+      );
+    });
+
+    it('keeps a slot until every compatible post is occupied', async () => {
+      const offer = await seededOffer('m1-center', 'scheduled-maintenance');
+      const slot = await availableSlot(offer.stationId, offer.serviceId);
+      const payload = {
+        ...offer,
+        startsAt: slot.startsAt,
+        customerName: 'Первый клиент',
+        phone: '+7 700 000 00 11',
+        vehicle: 'Первый автомобиль',
+      };
+
+      await request(app.getHttpServer())
+        .post('/api/bookings')
+        .send(payload)
+        .expect(201);
+      let result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).toContain(
+        slot.startsAt,
+      );
+
+      await request(app.getHttpServer())
+        .post('/api/bookings')
+        .send({
+          ...payload,
+          customerName: 'Второй клиент',
+          phone: '+7 700 000 00 12',
+          vehicle: 'Второй автомобиль',
+        })
+        .expect(201);
+      result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).not.toContain(
+        slot.startsAt,
+      );
+    });
+
+    it('blocks partial overlaps but allows an adjacent booking', async () => {
+      const offer = await seededOffer('m1-east', 'scheduled-maintenance');
+      const slot = await availableSlot(offer.stationId, offer.serviceId);
+      await request(app.getHttpServer())
+        .post('/api/bookings')
+        .send({
+          ...offer,
+          startsAt: slot.startsAt,
+          customerName: 'Иван Петров',
+          phone: '+7 700 000 00 00',
+          vehicle: 'Toyota Camry',
+        })
+        .expect(201);
+
+      const result = await availability(offer.stationId, offer.serviceId);
+      const starts = result.slots.map(({ startsAt }) => new Date(startsAt).getTime());
+      const start = new Date(slot.startsAt).getTime();
+
+      expect(starts).not.toContain(start + 30 * 60_000);
+      expect(starts).not.toContain(start + 60 * 60_000);
+      expect(starts).toContain(new Date(slot.endsAt).getTime());
     });
   });
 
@@ -505,6 +647,75 @@ describe('STO Booking API (E2E with PostgreSQL)', () => {
         responses.map(({ status }) => status).sort((left, right) => left - right),
       ).toEqual([201, 409]);
       await expect(prisma.booking.count()).resolves.toBe(1);
+    });
+
+    it('makes a cancelled booking slot available again', async () => {
+      const { offer, slot, booking } = await createGuestBooking();
+      let result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).not.toContain(
+        slot.startsAt,
+      );
+
+      const admin = await authenticatedAdmin();
+      await admin
+        .patch(`/api/admin/bookings/${booking.id}/status`)
+        .send({ status: 'CANCELLED' })
+        .expect(200);
+
+      result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).toContain(
+        slot.startsAt,
+      );
+    });
+
+    it('makes a completed booking slot available again', async () => {
+      const { offer, slot, booking } = await createGuestBooking();
+      const admin = await authenticatedAdmin();
+
+      for (const status of ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED']) {
+        await admin
+          .patch(`/api/admin/bookings/${booking.id}/status`)
+          .send({ status })
+          .expect(200);
+      }
+
+      const result = await availability(offer.stationId, offer.serviceId);
+      expect(result.slots.map(({ startsAt }) => startsAt)).toContain(
+        slot.startsAt,
+      );
+    });
+
+    it('keeps the original price and duration after the offer changes', async () => {
+      const { offer, booking } = await createGuestBooking();
+      const original = await prisma.stationService.findUniqueOrThrow({
+        where: {
+          stationId_serviceId: offer,
+        },
+        select: { durationMinutes: true, priceFrom: true },
+      });
+
+      try {
+        await prisma.stationService.update({
+          where: { stationId_serviceId: offer },
+          data: {
+            durationMinutes: original.durationMinutes + 15,
+            priceFrom: original.priceFrom + 5_000,
+          },
+        });
+
+        const stored = await prisma.booking.findUniqueOrThrow({
+          where: { id: booking.id },
+        });
+        expect(stored).toMatchObject({
+          durationMinutes: original.durationMinutes,
+          priceAmount: original.priceFrom,
+        });
+      } finally {
+        await prisma.stationService.update({
+          where: { stationId_serviceId: offer },
+          data: original,
+        });
+      }
     });
 
     it('rejects a saved vehicle owned by another client', async () => {
