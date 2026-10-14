@@ -104,6 +104,7 @@ sto-booking/
 │   └── backend/         # NestJS + Prisma
 ├── compose.yaml
 ├── compose.dev.yaml     # Next.js Fast Refresh + NestJS watch
+├── compose.coolify.yaml # production-развёртывание через Coolify
 ├── package.json         # npm workspaces
 ├── .env.example
 └── README.md
@@ -206,6 +207,39 @@ docker compose -f compose.dev.yaml exec backend npm run prisma:seed
 
 Демонстрационные данные включают шесть услуг, три СТО, рабочие посты,
 совместимость постов с услугами и расписание филиалов.
+
+## Развёртывание через Coolify
+
+Для VPS используется отдельный файл `compose.coolify.yaml`. Он не публикует
+порты приложений и PostgreSQL напрямую: внешний трафик идёт через HTTPS-прокси
+Coolify, а база доступна только контейнерам проекта. Данные PostgreSQL хранятся
+в постоянном Docker volume.
+
+В Coolify создайте ресурс **Docker Compose** из Git-репозитория и укажите путь
+`/compose.coolify.yaml`. До первого запуска задайте переменные окружения:
+
+```dotenv
+POSTGRES_DB=sto_booking
+POSTGRES_USER=sto_user
+POSTGRES_PASSWORD=<случайный пароль базы>
+JWT_SECRET=<случайная строка длиной не менее 32 символов>
+NEXT_PUBLIC_API_URL=https://api.example.com/api
+CORS_ORIGIN=https://example.com
+```
+
+Переменные `ADMIN_LOGIN`, `ADMIN_PASSWORD`, `ADMIN_NAME` и `ADMIN_PHONE`
+необязательны и нужны только для создания первой административной учётной
+записи. Реальные значения хранятся только в Coolify и никогда не добавляются в
+Git.
+
+После создания ресурса назначьте домены его сервисам:
+
+- `https://example.com` → `frontend`, внутренний порт `3000`;
+- `https://api.example.com` → `backend`, внутренний порт `5000`.
+
+DNS-записи обоих доменов должны указывать на IP VPS. После изменения доменов или
+переменных окружения выполните redeploy. Миграции Prisma и идемпотентный seed
+запускаются автоматически при старте backend.
 
 ## Модель расписания и бронирования
 
