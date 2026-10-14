@@ -934,32 +934,21 @@ a {
 
 .service-slider__track {
   display: grid;
-  grid-auto-columns: calc((100% - 28px) / 3);
-  grid-auto-flow: column;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  padding: 1px 0 16px;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scroll-behavior: smooth;
-  scroll-snap-type: inline mandatory;
-  scrollbar-width: none;
-}
-
-.service-slider__track::-webkit-scrollbar {
-  display: none;
 }
 
 .service-slide {
   min-width: 0;
-  scroll-snap-align: start;
 }
 
 .service-slide .catalog-card {
   height: 100%;
 }
 
-.service-slider__arrow {
-  display: block;
+.service-slider__arrow,
+.service-slider__count {
+  display: none;
 }
 
 @media (min-width: 1400px) {
@@ -969,11 +958,11 @@ a {
   }
 
   .station-slider .slider-arrow--previous {
-    left: 4px;
+    left: 80px;
   }
 
   .station-slider .slider-arrow--next {
-    right: 4px;
+    right: 80px;
   }
 }
 

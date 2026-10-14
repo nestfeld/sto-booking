@@ -38,7 +38,7 @@ export default async function HomePage() {
       </section>
 
       <section className="home-catalog service-showcase" aria-labelledby="services-title">
-        <ServiceSlider services={services} />
+        <ServiceSlider services={services?.slice(0, 3) ?? null} />
       </section>
 
       <ContactSection stations={stations} />
