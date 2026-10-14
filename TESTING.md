@@ -1,10 +1,12 @@
 # Тестирование STO Booking
 
-В проекте используются два уровня автоматических backend-тестов:
+В проекте используются три уровня автоматических тестов:
 
 - unit-тесты проверяют сервисы изолированно и используют моки зависимостей;
-- E2E-тесты отправляют HTTP-запросы через Supertest в настоящее NestJS-приложение
+- backend E2E-тесты отправляют HTTP-запросы через Supertest в настоящее NestJS-приложение
   и работают с отдельной PostgreSQL-базой без моков Prisma.
+- browser E2E-тесты управляют Chromium через Playwright и проверяют связку
+  Next.js → NestJS → настоящая отдельная PostgreSQL.
 
 ## Быстрый запуск E2E
 
@@ -36,6 +38,29 @@ PostgreSQL хранит данные в `tmpfs`. Она не подключен�
 production-volume. Дополнительно E2E-набор отказывается работать с базой, имя
 которой не содержит `test` или `e2e`.
 
+## Быстрый запуск Playwright из Docker
+
+Требуется только запущенный Docker Desktop. Из корня репозитория выполните:
+
+```powershell
+docker compose -f compose.playwright.yaml up --build --abort-on-container-exit --exit-code-from playwright
+```
+
+Команда собирает production-образы frontend и backend, запускает отдельную
+PostgreSQL 17 в `tmpfs`, применяет Prisma migrations и seed, затем выполняет
+реальные пользовательские действия в Chromium. Первый запуск дольше следующих,
+поскольку Docker один раз скачивает Chromium и его системные библиотеки.
+
+После прогона удалите контейнеры и тестовую базу:
+
+```powershell
+docker compose -f compose.playwright.yaml down --volumes --remove-orphans
+```
+
+Browser E2E использует тестовые домены `app.sto.test` и `api.sto.test` внутри
+Docker-сети. Это позволяет проверить CORS и `HttpOnly` cookie в условиях,
+похожих на production с отдельными поддоменами.
+
 ## Запуск unit-тестов из Docker
 
 Unit-тестам база не требуется:
@@ -58,6 +83,23 @@ docker compose -f compose.test.yaml run --build --rm --no-deps backend-e2e npm r
 - `apps/backend/vitest.config.e2e.ts` — конфигурация E2E;
 - `apps/backend/test/E2E_MATRIX.md` — матрица позитивных и негативных сценариев;
 - `compose.test.yaml` — изолированное Docker-окружение E2E.
+- `apps/frontend/e2e/user-flows.spec.ts` — сквозные пользовательские сценарии;
+- `apps/frontend/e2e/README.md` — матрица browser E2E и правила её обновления;
+- `apps/frontend/playwright.config.ts` — настройки браузера и артефактов ошибок;
+- `apps/frontend/Dockerfile.playwright` — образ с Playwright и Chromium;
+- `compose.playwright.yaml` — полный browser E2E-контур.
+
+## Что проверяет текущий Playwright-набор
+
+- гость выбирает услугу, СТО, дату и время, заполняет контакты и создаёт запись;
+- клиент регистрируется, добавляет автомобиль в гараж, выходит, снова входит и
+  видит сохранённый автомобиль;
+- запись создаётся через публичный API, администратор входит в панель и переводит
+  её из `PENDING` в `CONFIRMED`.
+
+Playwright автоматически сохраняет trace, screenshot и video только при падении
+в `apps/frontend/test-results`. Матрица browser-сценариев находится в
+[`apps/frontend/e2e/README.md`](apps/frontend/e2e/README.md).
 
 ## Что проверяет текущий E2E-набор
 
@@ -131,14 +173,14 @@ docker compose -f compose.test.yaml run --build --rm --no-deps backend-e2e npm r
 4. Не полагайтесь на фиксированные числовые ID или порядок других тестов.
 5. Для записей используйте динамически вычисленную будущую рабочую дату.
 6. Оставляйте тестовую базу чистой через общий `beforeEach`.
-7. Обновите `apps/backend/test/E2E_MATRIX.md` и соответствующий раздел этого
-   файла.
+7. Обновите соответствующую матрицу (`apps/backend/test/E2E_MATRIX.md` или
+   `apps/frontend/e2e/README.md`) и этот файл.
 8. Если изменилась команда запуска или Docker-контур, обновите также `README.md`.
 
 Название теста должно описывать наблюдаемое поведение API, а не внутренний метод.
 Например: `returns 409 when two clients request the only available post`.
 
-Перед отправкой изменений выполните E2E, unit-тесты и линтер.
+Перед отправкой изменений выполните применимые E2E, unit-тесты и линтер.
 
 ## Интерпретация результата
 

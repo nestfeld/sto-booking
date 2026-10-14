@@ -1,0 +1,90 @@
+name: sto-booking-playwright
+
+services:
+  postgres-browser:
+    image: postgres:17-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: sto_booking_browser_e2e
+      POSTGRES_USER: sto_browser_test
+      POSTGRES_PASSWORD: sto_browser_test_password
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sto_browser_test -d sto_booking_browser_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  backend-browser:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: "no"
+    environment:
+      NODE_ENV: test
+      PORT: 5000
+      DATABASE_URL: postgresql://sto_browser_test:sto_browser_test_password@postgres-browser:5432/sto_booking_browser_e2e?schema=public
+      CORS_ORIGIN: http://app.sto.test:3000
+      JWT_SECRET: browser-e2e-jwt-secret-at-least-32-characters
+      COOKIE_SECURE: "false"
+      ADMIN_LOGIN: e2e.admin
+      ADMIN_PASSWORD: e2e-admin-password
+      ADMIN_NAME: Browser E2E Администратор
+      ADMIN_PHONE: +7 700 000 00 99
+    depends_on:
+      postgres-browser:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - api.sto.test
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/api/health >/dev/null || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  frontend-browser:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://api.sto.test:5000/api
+    restart: "no"
+    environment:
+      API_INTERNAL_URL: http://backend-browser:5000/api
+    depends_on:
+      backend-browser:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - app.sto.test
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  playwright:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile.playwright
+    restart: "no"
+    environment:
+      PLAYWRIGHT_BASE_URL: http://app.sto.test:3000
+      PLAYWRIGHT_API_URL: http://api.sto.test:5000/api
+      PLAYWRIGHT_ADMIN_LOGIN: e2e.admin
+      PLAYWRIGHT_ADMIN_PASSWORD: e2e-admin-password
+    depends_on:
+      frontend-browser:
+        condition: service_healthy
+      backend-browser:
+        condition: service_healthy
+    volumes:
+      - ./apps/frontend/e2e:/workspace/apps/frontend/e2e:ro
+      - ./apps/frontend/playwright.config.ts:/workspace/apps/frontend/playwright.config.ts:ro

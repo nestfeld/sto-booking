@@ -118,6 +118,21 @@ docker compose -f compose.test.yaml down --volumes --remove-orphans
 в [`TESTING.md`](TESTING.md). Матрица покрытия — в
 [`apps/backend/test/E2E_MATRIX.md`](apps/backend/test/E2E_MATRIX.md).
 
+## Browser E2E с Playwright
+
+Playwright проверяет production-сборки frontend и backend реальными действиями в
+Chromium. Контур самостоятельно поднимает отдельную PostgreSQL и не затрагивает
+данные обычного приложения.
+
+```powershell
+docker compose -f compose.playwright.yaml up --build --abort-on-container-exit --exit-code-from playwright
+docker compose -f compose.playwright.yaml down --volumes --remove-orphans
+```
+
+Сценарии и их назначение описаны в
+[`apps/frontend/e2e/README.md`](apps/frontend/e2e/README.md), устройство всего
+тестового контура — в [`TESTING.md`](TESTING.md).
+
 ## Структура
 
 ```text
@@ -129,6 +144,7 @@ sto-booking/
 ├── compose.dev.yaml     # Next.js Fast Refresh + NestJS watch
 ├── compose.coolify.yaml # production-развёртывание через Coolify
 ├── compose.test.yaml    # E2E с отдельной PostgreSQL
+├── compose.playwright.yaml # Playwright + Next.js + NestJS + отдельная PostgreSQL
 ├── TESTING.md           # запуск, устройство и развитие тестов
 ├── package.json         # npm workspaces
 ├── .env.example
