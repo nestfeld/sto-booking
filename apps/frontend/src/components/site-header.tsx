@@ -16,9 +16,6 @@ export function SiteHeader() {
       </nav>
 
       <div className="header-actions">
-        <Link className="header-action" href="/booking">
-          Записаться
-        </Link>
         <HeaderAccount />
       </div>
     </header>

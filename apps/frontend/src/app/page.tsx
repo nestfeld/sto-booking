@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { ContactSection } from '@/components/contact-section'
 import { HeroSection } from '@/components/hero-section'
 import { ServiceSlider } from '@/components/service-slider'
 import { SiteLayout } from '@/components/site-layout'
@@ -22,10 +23,15 @@ export default async function HomePage() {
   const services = servicesResult.status === 'fulfilled' ? servicesResult.value : null
   const stations = stationsResult.status === 'fulfilled' ? stationsResult.value : null
   const previewServices = services?.slice(0, 3) ?? previewFallback
+  const isSystemAvailable =
+    servicesResult.status === 'fulfilled' && stationsResult.status === 'fulfilled'
 
   return (
     <SiteLayout>
-      <HeroSection services={previewServices} />
+      <HeroSection
+        services={previewServices}
+        isSystemAvailable={isSystemAvailable}
+      />
 
       <section className="home-catalog station-showcase" aria-labelledby="stations-title">
         <StationSlider stations={stations} />
@@ -34,6 +40,8 @@ export default async function HomePage() {
       <section className="home-catalog service-showcase" aria-labelledby="services-title">
         <ServiceSlider services={services?.slice(0, 3) ?? null} />
       </section>
+
+      <ContactSection stations={stations} />
     </SiteLayout>
   )
 }

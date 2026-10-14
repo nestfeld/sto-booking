@@ -1,8 +1,8 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { BookingPreview } from './booking-preview'
 import { Eyebrow } from './eyebrow'
 import { FeatureIcon } from './feature-icon'
-import { HealthIndicator } from './health-indicator'
 
 type HeroService = {
   id: number
@@ -12,6 +12,7 @@ type HeroService = {
 
 type HeroSectionProps = {
   services: HeroService[]
+  isSystemAvailable: boolean
 }
 
 const principles = [
@@ -20,9 +21,20 @@ const principles = [
   { value: 'Без звонка', label: 'В удобное время', icon: 'online-booking' },
 ] as const
 
-export function HeroSection({ services }: HeroSectionProps) {
+export function HeroSection({ services, isSystemAvailable }: HeroSectionProps) {
   return (
     <section className="hero" aria-labelledby="hero-title">
+      <Image
+        className="hero__background"
+        src="/images/hero-workshop-background.webp"
+        alt=""
+        fill
+        sizes="100vw"
+        quality={60}
+        priority
+        aria-hidden="true"
+      />
+
       <div className="hero__content">
         <Eyebrow>Сеть автосервисов</Eyebrow>
         <h1 id="hero-title">
@@ -39,7 +51,13 @@ export function HeroSection({ services }: HeroSectionProps) {
             Записаться онлайн
             <span aria-hidden="true">↗</span>
           </Link>
-          <HealthIndicator />
+          <span
+            className={`health health--${isSystemAvailable ? 'online' : 'offline'}`}
+            role="status"
+          >
+            <span className="health__dot" aria-hidden="true" />
+            {isSystemAvailable ? 'Система готова' : 'Система недоступна'}
+          </span>
         </div>
 
         <dl className="principles">

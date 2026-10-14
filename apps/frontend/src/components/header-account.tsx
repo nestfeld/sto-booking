@@ -24,7 +24,13 @@ export function HeaderAccount() {
   }, [])
 
   if (user === undefined) {
-    return <span className="header-account-loading" aria-hidden="true" />
+    return (
+      <span
+        className="header-account-loading"
+        role="status"
+        aria-label="Проверяем авторизацию"
+      />
+    )
   }
 
   if (user) {

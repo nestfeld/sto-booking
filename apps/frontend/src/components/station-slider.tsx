@@ -66,6 +66,7 @@ export function StationSlider({ stations }: StationSliderProps) {
                     alt="Современный автосервис M1 в вечернее время"
                     fill
                     sizes="(max-width: 560px) 90vw, (max-width: 900px) 80vw, 52vw"
+                    quality={65}
                   />
                   <div className="station-slide__image-shade" aria-hidden="true" />
                   <div className="station-slide__brand" aria-hidden="true">

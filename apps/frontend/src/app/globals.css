@@ -69,7 +69,7 @@ a {
 }
 
 .site-nav a,
-.header-action {
+.header-login {
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
@@ -77,8 +77,12 @@ a {
   color: var(--text);
 }
 
-.header-action {
-  justify-self: end;
+.header-login {
+  min-width: 84px;
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px 18px;
   border: 1px solid rgb(213 139 85 / 48%);
   border-radius: 9px;
@@ -89,34 +93,48 @@ a {
   font-weight: 700;
 }
 
-.header-action:hover {
+.header-login:hover,
+.header-login:focus-visible {
   border-color: var(--accent-soft);
   background: linear-gradient(135deg, #a84d31, #c2633d 58%, #d28751);
   box-shadow: 0 10px 28px rgb(199 101 69 / 26%);
+  color: #fff;
+  outline: none;
 }
 
 .header-actions {
+  min-width: 84px;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   justify-self: end;
-  gap: 18px;
-}
-
-.header-login {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 700;
-  transition: color 160ms ease;
-}
-
-.header-login:hover {
-  color: var(--text);
 }
 
 .header-account-loading {
-  width: 40px;
-  height: 40px;
+  width: 84px;
+  height: 43px;
+  display: grid;
   flex: none;
+  place-items: center;
+  border: 1px solid rgb(213 139 85 / 22%);
+  border-radius: 9px;
+  background: rgb(199 101 69 / 7%);
+}
+
+.header-account-loading::after {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgb(213 139 85 / 22%);
+  border-top-color: var(--accent-soft);
+  border-radius: 50%;
+  animation: header-account-spin 700ms linear infinite;
+  content: "";
+}
+
+@keyframes header-account-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .header-avatar {
@@ -206,12 +224,13 @@ a {
   padding: 84px 0 72px;
 }
 
-.hero::before {
+.hero__background {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: url("/images/hero-workshop-background.webp") center / cover no-repeat;
-  content: "";
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   opacity: 0.16;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(
@@ -586,11 +605,11 @@ a {
 }
 
 .home-catalog {
-  padding: 104px 0;
+  padding: 72px 0;
   border-top: 1px solid var(--border);
 }
 
-.home-catalog:not(.station-showcase) {
+.home-catalog {
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
 }
@@ -767,7 +786,7 @@ a {
 }
 
 .station-showcase {
-  padding-top: 52px;
+  padding-top: 40px;
 }
 
 .slider-header {
@@ -1184,6 +1203,108 @@ a {
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 5px rgb(199 101 69 / 10%);
+}
+
+.contact-section {
+  padding: 72px 0;
+  border-top: 1px solid var(--border);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 430px;
+  scroll-margin-top: 24px;
+}
+
+.contact-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.7fr);
+  gap: clamp(42px, 7vw, 96px);
+  padding: clamp(28px, 4vw, 48px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgb(16 19 21 / 88%), rgb(6 8 9 / 96%));
+}
+
+.contact-panel__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.contact-panel__intro > p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.contact-panel__booking {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  margin-top: 28px;
+  padding: 0 19px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-deep), var(--accent-soft));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.contact-panel__booking span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.contact-panel__details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.contact-panel__details > div {
+  min-width: 0;
+  padding: 5px 26px;
+  border-left: 1px solid var(--border);
+}
+
+.contact-panel__details dt {
+  margin-bottom: 17px;
+  color: #6f7579;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.contact-panel__details dd {
+  margin: 0;
+  color: #f4f5f5;
+  font-size: clamp(17px, 1.65vw, 22px);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.contact-panel__details dd a {
+  transition: color 160ms ease;
+}
+
+.contact-panel__details dd a:hover,
+.contact-panel__details dd a:focus-visible {
+  color: var(--accent-soft);
+  outline: none;
+}
+
+.contact-panel__details small {
+  display: block;
+  margin-top: 9px;
+  color: #747a7e;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .site-footer {
@@ -2738,6 +2859,11 @@ a {
   .booking-time-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .contact-panel {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2767,17 +2893,15 @@ a {
     font-size: 10px;
   }
 
-  .header-action {
+  .header-login {
+    min-width: 68px;
+    min-height: 38px;
     padding: 9px 12px;
     font-size: 12px;
   }
 
   .header-actions {
-    gap: 10px;
-  }
-
-  .header-login {
-    font-size: 11px;
+    min-width: 68px;
   }
 
   .header-avatar {
@@ -2786,7 +2910,7 @@ a {
   }
 
   .header-account-loading {
-    width: 38px;
+    width: 68px;
     height: 38px;
   }
 
@@ -2900,8 +3024,43 @@ a {
   }
 
   .home-catalog,
-  .catalog-page {
-    padding: 44px 0;
+  .catalog-page,
+  .contact-section {
+    padding: 34px 0;
+  }
+
+  .contact-panel {
+    gap: 30px;
+    padding: 20px;
+    border-radius: 11px;
+  }
+
+  .contact-panel__intro > p {
+    font-size: 14px;
+  }
+
+  .contact-panel__booking {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 22px;
+  }
+
+  .contact-panel__details {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-panel__details > div {
+    padding: 20px 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .contact-panel__details > div:last-child {
+    padding-bottom: 0;
+  }
+
+  .contact-panel__details dt {
+    margin-bottom: 9px;
   }
 
   .section-heading {
@@ -2977,7 +3136,7 @@ a {
   }
 
   .station-showcase {
-    padding-top: 26px;
+    padding-top: 24px;
   }
 
   .slider-header {
@@ -3018,7 +3177,7 @@ a {
     color: rgb(231 233 234 / 68%);
     opacity: 0.58;
     font-size: 19px;
-    backdrop-filter: blur(5px);
+    backdrop-filter: none;
   }
 
   .slider-arrow--previous {
@@ -3138,6 +3297,10 @@ a {
   .account-page {
     gap: 38px;
     padding: 44px 0 60px;
+  }
+
+  .auth-page > .auth-card {
+    order: -1;
   }
 
   .auth-intro h1,
@@ -3326,19 +3489,29 @@ a {
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 420px) {
   .principles {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 8px;
   }
 
   .principles div {
-    grid-template-columns: 32px minmax(0, 1fr);
-    min-height: 42px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    min-height: 30px;
+  }
+
+  .principles div:last-child {
+    width: calc(50% - 4px);
+    grid-column: 1 / -1;
+    justify-self: center;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .header-account-loading::after {
+    animation: none;
+  }
+
   .booking-preview::before,
   .booking-preview::after {
     animation: none;
@@ -3348,6 +3521,43 @@ a {
   .service-option,
   .radio {
     transition: none;
+  }
+}
+
+@media (max-width: 700px), (hover: none), (pointer: coarse) {
+  .booking-preview::before,
+  .booking-preview::after {
+    animation: none;
+  }
+
+  .booking-preview::after,
+  .visual-glow {
+    display: none;
+  }
+
+  .station-slide__image img {
+    transition: none;
+  }
+
+  .station-slide:hover .station-slide__image img {
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .booking-preview {
+    --booking-angle: 0deg;
+  }
+
+  .booking-preview::before {
+    background: conic-gradient(
+      from var(--booking-angle),
+      transparent 0deg 264deg,
+      rgb(159 71 47 / 28%) 276deg,
+      var(--accent) 304deg,
+      var(--accent-soft) 330deg,
+      transparent 358deg 360deg
+    );
   }
 }
 

@@ -18,7 +18,11 @@ export function BookingPreview({ services }: BookingPreviewProps) {
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
-    if (services.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const shouldReduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce), (max-width: 700px), (pointer: coarse)',
+    ).matches
+
+    if (services.length < 2 || shouldReduceMotion) {
       return
     }
 
